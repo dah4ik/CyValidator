@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CyValidator</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 270px;
+            background: #020617;
+            padding: 24px;
+            border-right: 1px solid #1e293b;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .nav-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: #111827;
+            color: #cbd5e1;
+        }
+
+        .main {
+            flex: 1;
+            padding: 40px;
+        }
+
+        .header {
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 36px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 16px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: #111827;
+            border: 1px solid #1e293b;
+            padding: 24px;
+            border-radius: 14px;
+        }
+
+        .card-title {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .card-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .section {
+            margin-top: 40px;
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 24px;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #1e293b;
+            padding: 7px 12px;
+            border-radius: 999px;
+            margin: 5px;
+            color: #cbd5e1;
+            font-size: 13px;
+        }
+
+        .small {
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="logo">CyValidator</div>
+        <div class="subtitle">
+            Enterprise Exposure, Drift & Remediation Validation Platform
+        </div>
+
+        <div class="nav-item">Overview</div>
+        <div class="nav-item">Assets</div>
+        <div class="nav-item">Validation Packs</div>
+        <div class="nav-item">Findings</div>
+        <div class="nav-item">Attack Graph</div>
+        <div class="nav-item">Baseline Compliance</div>
+        <div class="nav-item">Remediation</div>
+        <div class="nav-item">Reports</div>
+    </aside>
+
+    <main class="main">
+        <div class="header">
+            <h1>Cyber Posture Orchestration Console</h1>
+            <p>
+                Startup-style cybersecurity platform for validation,
+                misconfiguration detection, attack path analysis and remediation management.
+            </p>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <div class="card-title">Security Score</div>
+                <div class="card-value">64/100</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Critical Findings</div>
+                <div class="card-value">9</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Open Attack Paths</div>
+                <div class="card-value">4</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Baseline Compliance</div>
+                <div class="card-value">58%</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Assets Monitored</div>
+                <div class="card-value">32</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">SLA Breaches</div>
+                <div class="card-value">3</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Planned Validation Packs</h2>
+            <span class="tag">Linux Hardening</span>
+            <span class="tag">Docker Security</span>
+            <span class="tag">Database Exposure</span>
+            <span class="tag">Web API Security</span>
+            <span class="tag">IAM Risk</span>
+            <span class="tag">Network Segmentation</span>
+            <span class="tag">Data Protection</span>
+        </div>
+
+        <div class="section">
+            <h2>Product Vision</h2>
+            <p class="small">
+                CyValidator is designed as a startup-style cyber validation platform.
+                Development is done on Windows, while final deployment will be prepared for Ubuntu Server.
+                Future modules will validate security controls, detect configuration drift,
+                calculate enterprise risk, simulate attack paths and track remediation from detection to closure.
+            </p>
+        </div>
+    </main>
+</div>
+</body>
+</html>

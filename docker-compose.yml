@@ -1,0 +1,49 @@
+services:
+  frontend:
+    build: ./platform/frontend
+    container_name: cyvalidator-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - cyvalidator-net
+
+  api-gateway:
+    build: ./platform/api-gateway
+    container_name: cyvalidator-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      ENVIRONMENT: development
+    networks:
+      - cyvalidator-net
+
+  postgres:
+    image: postgres:16
+    container_name: cyvalidator-postgres
+    environment:
+      POSTGRES_USER: cyvalidator
+      POSTGRES_PASSWORD: cyvalidator
+      POSTGRES_DB: cyvalidator
+    ports:
+      - "5432:5432"
+    volumes:
+      - cyvalidator_postgres_data:/var/lib/postgresql/data
+    networks:
+      - cyvalidator-net
+
+  redis:
+    image: redis:7
+    container_name: cyvalidator-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - cyvalidator-net
+
+networks:
+  cyvalidator-net:
+    driver: bridge
+
+volumes:
+  cyvalidator_postgres_data:
