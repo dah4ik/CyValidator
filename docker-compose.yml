@@ -19,10 +19,14 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8081
       ASSET_SERVICE_URL: http://asset-service:8082
       FINDINGS_SERVICE_URL: http://findings-service:8083
+      RISK_ENGINE_URL: http://risk-engine:8084
+      BASELINE_ENGINE_URL: http://baseline-engine:8085
     depends_on:
       - auth-service
       - asset-service
       - findings-service
+      - risk-engine
+      - baseline-engine
     networks:
       - cyvalidator-net
 
@@ -65,6 +69,38 @@ services:
       - postgres
       - auth-service
       - asset-service
+    networks:
+      - cyvalidator-net
+
+  risk-engine:
+    build: ./platform/risk-engine
+    container_name: cyvalidator-risk-engine
+    ports:
+      - "8084:8084"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+      - asset-service
+      - findings-service
+    networks:
+      - cyvalidator-net
+
+  baseline-engine:
+    build: ./platform/baseline-engine
+    container_name: cyvalidator-baseline-engine
+    ports:
+      - "8085:8085"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+      - asset-service
+      - findings-service
     networks:
       - cyvalidator-net
 

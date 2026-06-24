@@ -7,11 +7,13 @@ from fastapi import FastAPI, Header, HTTPException, Request
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8081")
 ASSET_SERVICE_URL = os.getenv("ASSET_SERVICE_URL", "http://asset-service:8082")
 FINDINGS_SERVICE_URL = os.getenv("FINDINGS_SERVICE_URL", "http://findings-service:8083")
+RISK_ENGINE_URL = os.getenv("RISK_ENGINE_URL", "http://risk-engine:8084")
+BASELINE_ENGINE_URL = os.getenv("BASELINE_ENGINE_URL", "http://baseline-engine:8085")
 
 app = FastAPI(
     title="CyValidator API Gateway",
     description="Central API Gateway for CyValidator",
-    version="0.1.0",
+    version="0.6.0",
 )
 
 
@@ -41,17 +43,19 @@ def platform_info():
         "development_platform": "Windows",
         "target_deployment_platform": "Ubuntu Server",
         "runtime": "Docker Compose",
-        "version": "0.4.0",
+        "version": "0.6.0",
         "modules": [
             "API Gateway",
             "Frontend Dashboard",
             "Auth Service",
             "Asset Service",
             "Findings Service",
+            "Risk Engine",
+            "Baseline Engine",
             "PostgreSQL",
             "Redis",
             "Future Scan Orchestrator",
-            "Future Risk Engine",
+            "Future Attack Graph Engine",
             "Future Validation Packs",
         ],
     }
@@ -69,7 +73,13 @@ async def forward_json_response(response: httpx.Response):
             detail=detail,
         )
 
-    return response.json()
+    try:
+        return response.json()
+    except ValueError:
+        return {
+            "status_code": response.status_code,
+            "body": response.text,
+        }
 
 
 @app.get("/api/services/health")
@@ -78,6 +88,8 @@ async def services_health():
         "auth-service": f"{AUTH_SERVICE_URL}/health",
         "asset-service": f"{ASSET_SERVICE_URL}/health",
         "findings-service": f"{FINDINGS_SERVICE_URL}/health",
+        "risk-engine": f"{RISK_ENGINE_URL}/health",
+        "baseline-engine": f"{BASELINE_ENGINE_URL}/health",
     }
 
     results = {}
@@ -87,6 +99,7 @@ async def services_health():
             try:
                 response = await client.get(url)
                 results[service_name] = {
+                    "status": "reachable",
                     "status_code": response.status_code,
                     "response": response.json(),
                 }
@@ -131,6 +144,39 @@ async def proxy_permissions(authorization: str = Header(...)):
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(
             f"{AUTH_SERVICE_URL}/api/auth/rbac/permissions",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/auth/tenants")
+async def proxy_list_tenants(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{AUTH_SERVICE_URL}/api/auth/tenants",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/auth/roles")
+async def proxy_list_roles(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{AUTH_SERVICE_URL}/api/auth/roles",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/auth/users")
+async def proxy_list_users(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{AUTH_SERVICE_URL}/api/auth/users",
             headers={"Authorization": authorization},
         )
 
@@ -325,6 +371,178 @@ async def proxy_delete_finding(finding_id: int, authorization: str = Header(...)
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.delete(
             f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/risk/summary")
+async def proxy_risk_summary(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{RISK_ENGINE_URL}/api/risk/summary",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/risk/security-score")
+async def proxy_security_score(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{RISK_ENGINE_URL}/api/risk/security-score",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/risk/priorities")
+async def proxy_risk_priorities(
+        authorization: str = Header(...),
+        limit: int = 5,
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{RISK_ENGINE_URL}/api/risk/priorities",
+            headers={"Authorization": authorization},
+            params={"limit": limit},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/risk/assets")
+async def proxy_risky_assets(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{RISK_ENGINE_URL}/api/risk/assets",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/risk/remediation-roi")
+async def proxy_remediation_roi(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{RISK_ENGINE_URL}/api/risk/remediation-roi",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/baseline/summary")
+async def proxy_baseline_summary(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{BASELINE_ENGINE_URL}/api/baseline/summary",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/baseline/controls")
+async def proxy_baseline_controls(
+        authorization: str = Header(...),
+        status_filter: str | None = None,
+        severity: str | None = None,
+        category: str | None = None,
+):
+    params = {}
+
+    if status_filter:
+        params["status_filter"] = status_filter
+
+    if severity:
+        params["severity"] = severity
+
+    if category:
+        params["category"] = category
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{BASELINE_ENGINE_URL}/api/baseline/controls",
+            headers={"Authorization": authorization},
+            params=params,
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/baseline/failed")
+async def proxy_failed_baseline_controls(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{BASELINE_ENGINE_URL}/api/baseline/failed",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/baseline/controls/{control_id}")
+async def proxy_get_baseline_control(
+        control_id: int,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.post("/api/baseline/controls")
+async def proxy_create_baseline_control(
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{BASELINE_ENGINE_URL}/api/baseline/controls",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.put("/api/baseline/controls/{control_id}")
+async def proxy_update_baseline_control(
+        control_id: int,
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.put(
+            f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.delete("/api/baseline/controls/{control_id}")
+async def proxy_delete_baseline_control(
+        control_id: int,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.delete(
+            f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
             headers={"Authorization": authorization},
         )
 
