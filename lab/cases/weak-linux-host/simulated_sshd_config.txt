@@ -1,0 +1,10 @@
+# Simulated SSH configuration for CyValidator lab.
+# This file is not used by a real SSH daemon.
+
+Port 22
+PermitRootLogin yes
+PasswordAuthentication yes
+PubkeyAuthentication yes
+AllowTcpForwarding yes
+X11Forwarding no
+PermitEmptyPasswords no

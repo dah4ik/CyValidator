@@ -1,0 +1,101 @@
+services:
+  weak-linux-host:
+    build: ./cases/weak-linux-host
+    container_name: cyvalidator-lab-weak-linux-host
+    ports:
+      - "9101:8080"
+    environment:
+      LAB_CASE_NAME: weak-linux-host
+      SIMULATED_ROOT_LOGIN: enabled
+      SIMULATED_FIREWALL: disabled
+      SIMULATED_AUDIT_LOGGING: partial
+    networks:
+      - cyvalidator-lab-net
+    labels:
+      cyvalidator.lab.case: "weak-linux-host"
+      cyvalidator.lab.risk: "linux-hardening"
+
+  exposed-postgres:
+    image: postgres:16
+    container_name: cyvalidator-lab-exposed-postgres
+    ports:
+      - "127.0.0.1:15432:5432"
+    environment:
+      POSTGRES_USER: lab_admin
+      POSTGRES_PASSWORD: lab_password
+      POSTGRES_DB: lab_sensitive_db
+    volumes:
+      - ./cases/exposed-postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - cyvalidator-lab-net
+    labels:
+      cyvalidator.lab.case: "exposed-postgres"
+      cyvalidator.lab.risk: "database-exposure"
+
+  vulnerable-api:
+    build: ./cases/vulnerable-api
+    container_name: cyvalidator-lab-vulnerable-api
+    ports:
+      - "9102:8080"
+    environment:
+      LAB_CASE_NAME: vulnerable-api
+      DEMO_ADMIN_ENDPOINT: exposed
+      DEMO_SECURITY_HEADERS: missing
+      DEMO_RATE_LIMITING: disabled
+    networks:
+      - cyvalidator-lab-net
+    labels:
+      cyvalidator.lab.case: "vulnerable-api"
+      cyvalidator.lab.risk: "web-api-security"
+
+  privileged-container-sim:
+    build: ./cases/privileged-container-sim
+    container_name: cyvalidator-lab-privileged-container-sim
+    ports:
+      - "9103:8080"
+    environment:
+      LAB_CASE_NAME: privileged-container-sim
+      SIMULATED_PRIVILEGED_MODE: enabled
+      SIMULATED_ROOT_USER: enabled
+      SIMULATED_DOCKER_SOCKET_MOUNT: detected
+    networks:
+      - cyvalidator-lab-net
+    labels:
+      cyvalidator.lab.case: "privileged-container-sim"
+      cyvalidator.lab.risk: "container-security"
+
+  logging-disabled-service:
+    build: ./cases/logging-disabled-service
+    container_name: cyvalidator-lab-logging-disabled-service
+    ports:
+      - "9104:8080"
+    environment:
+      LAB_CASE_NAME: logging-disabled-service
+      SIMULATED_AUDIT_LOGGING: disabled
+      SIMULATED_FORWARDING: disabled
+      SIMULATED_SECURITY_EVENTS: not_collected
+    networks:
+      - cyvalidator-lab-net
+    labels:
+      cyvalidator.lab.case: "logging-disabled-service"
+      cyvalidator.lab.risk: "logging-monitoring"
+
+  sensitive-data-store:
+    build: ./cases/sensitive-data-store
+    container_name: cyvalidator-lab-sensitive-data-store
+    ports:
+      - "9105:8080"
+    environment:
+      LAB_CASE_NAME: sensitive-data-store
+      SIMULATED_ENCRYPTION_AT_REST: disabled
+      SIMULATED_BACKUP_EXPOSURE: user_zone_accessible
+      SIMULATED_DATA_CLASSIFICATION: sensitive_demo_data
+    networks:
+      - cyvalidator-lab-net
+    labels:
+      cyvalidator.lab.case: "sensitive-data-store"
+      cyvalidator.lab.risk: "data-protection"
+
+networks:
+  cyvalidator-lab-net:
+    driver: bridge
