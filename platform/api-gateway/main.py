@@ -9,11 +9,15 @@ ASSET_SERVICE_URL = os.getenv("ASSET_SERVICE_URL", "http://asset-service:8082")
 FINDINGS_SERVICE_URL = os.getenv("FINDINGS_SERVICE_URL", "http://findings-service:8083")
 RISK_ENGINE_URL = os.getenv("RISK_ENGINE_URL", "http://risk-engine:8084")
 BASELINE_ENGINE_URL = os.getenv("BASELINE_ENGINE_URL", "http://baseline-engine:8085")
+ATTACK_GRAPH_ENGINE_URL = os.getenv(
+    "ATTACK_GRAPH_ENGINE_URL",
+    "http://attack-graph-engine:8086",
+)
 
 app = FastAPI(
     title="CyValidator API Gateway",
     description="Central API Gateway for CyValidator",
-    version="0.6.0",
+    version="0.7.0",
 )
 
 
@@ -43,7 +47,7 @@ def platform_info():
         "development_platform": "Windows",
         "target_deployment_platform": "Ubuntu Server",
         "runtime": "Docker Compose",
-        "version": "0.6.0",
+        "version": "0.7.0",
         "modules": [
             "API Gateway",
             "Frontend Dashboard",
@@ -52,10 +56,10 @@ def platform_info():
             "Findings Service",
             "Risk Engine",
             "Baseline Engine",
+            "Attack Graph Engine",
             "PostgreSQL",
             "Redis",
             "Future Scan Orchestrator",
-            "Future Attack Graph Engine",
             "Future Validation Packs",
         ],
     }
@@ -90,6 +94,7 @@ async def services_health():
         "findings-service": f"{FINDINGS_SERVICE_URL}/health",
         "risk-engine": f"{RISK_ENGINE_URL}/health",
         "baseline-engine": f"{BASELINE_ENGINE_URL}/health",
+        "attack-graph-engine": f"{ATTACK_GRAPH_ENGINE_URL}/health",
     }
 
     results = {}
@@ -114,6 +119,10 @@ async def services_health():
         "services": results,
     }
 
+
+# ============================================================
+# Auth Service Proxy
+# ============================================================
 
 @app.post("/api/auth/login")
 async def proxy_login(request: Request):
@@ -182,6 +191,10 @@ async def proxy_list_users(authorization: str = Header(...)):
 
     return await forward_json_response(response)
 
+
+# ============================================================
+# Asset Service Proxy
+# ============================================================
 
 @app.get("/api/assets")
 async def proxy_list_assets(authorization: str = Header(...)):
@@ -269,6 +282,10 @@ async def proxy_delete_asset(asset_id: int, authorization: str = Header(...)):
 
     return await forward_json_response(response)
 
+
+# ============================================================
+# Findings Service Proxy
+# ============================================================
 
 @app.get("/api/findings")
 async def proxy_list_findings(
@@ -377,6 +394,10 @@ async def proxy_delete_finding(finding_id: int, authorization: str = Header(...)
     return await forward_json_response(response)
 
 
+# ============================================================
+# Risk Engine Proxy
+# ============================================================
+
 @app.get("/api/risk/summary")
 async def proxy_risk_summary(authorization: str = Header(...)):
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -435,6 +456,10 @@ async def proxy_remediation_roi(authorization: str = Header(...)):
 
     return await forward_json_response(response)
 
+
+# ============================================================
+# Baseline Engine Proxy
+# ============================================================
 
 @app.get("/api/baseline/summary")
 async def proxy_baseline_summary(authorization: str = Header(...)):
@@ -543,6 +568,146 @@ async def proxy_delete_baseline_control(
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.delete(
             f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+# ============================================================
+# Attack Graph Engine Proxy
+# ============================================================
+
+@app.get("/api/attack-graph/summary")
+async def proxy_attack_graph_summary(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/summary",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/attack-graph/paths")
+async def proxy_attack_graph_paths(
+        authorization: str = Header(...),
+        severity: str | None = None,
+        status_filter: str | None = None,
+):
+    params = {}
+
+    if severity:
+        params["severity"] = severity
+
+    if status_filter:
+        params["status_filter"] = status_filter
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths",
+            headers={"Authorization": authorization},
+            params=params,
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/attack-graph/critical")
+async def proxy_critical_attack_paths(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/critical",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/attack-graph/break-points")
+async def proxy_attack_graph_break_points(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/break-points",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/attack-graph/paths/{path_id}")
+async def proxy_get_attack_path(
+        path_id: int,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.post("/api/attack-graph/paths")
+async def proxy_create_attack_path(
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.put("/api/attack-graph/paths/{path_id}")
+async def proxy_update_attack_path(
+        path_id: int,
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.put(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.patch("/api/attack-graph/paths/{path_id}/status")
+async def proxy_update_attack_path_status(
+        path_id: int,
+        status_value: str,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.patch(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}/status",
+            headers={"Authorization": authorization},
+            params={"status_value": status_value},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.delete("/api/attack-graph/paths/{path_id}")
+async def proxy_delete_attack_path(
+        path_id: int,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.delete(
+            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
             headers={"Authorization": authorization},
         )
 

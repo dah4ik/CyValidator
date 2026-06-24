@@ -21,12 +21,14 @@ services:
       FINDINGS_SERVICE_URL: http://findings-service:8083
       RISK_ENGINE_URL: http://risk-engine:8084
       BASELINE_ENGINE_URL: http://baseline-engine:8085
+      ATTACK_GRAPH_ENGINE_URL: http://attack-graph-engine:8086
     depends_on:
       - auth-service
       - asset-service
       - findings-service
       - risk-engine
       - baseline-engine
+      - attack-graph-engine
     networks:
       - cyvalidator-net
 
@@ -101,6 +103,23 @@ services:
       - auth-service
       - asset-service
       - findings-service
+    networks:
+      - cyvalidator-net
+
+  attack-graph-engine:
+    build: ./platform/attack-graph-engine
+    container_name: cyvalidator-attack-graph-engine
+    ports:
+      - "8086:8086"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+      - asset-service
+      - findings-service
+      - baseline-engine
     networks:
       - cyvalidator-net
 
