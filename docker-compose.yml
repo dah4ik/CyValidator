@@ -22,6 +22,8 @@ services:
       RISK_ENGINE_URL: http://risk-engine:8084
       BASELINE_ENGINE_URL: http://baseline-engine:8085
       ATTACK_GRAPH_ENGINE_URL: http://attack-graph-engine:8086
+      SCAN_ORCHESTRATOR_URL: http://scan-orchestrator:8087
+      VALIDATION_PACK_REGISTRY_URL: http://validation-pack-registry:8088
     depends_on:
       - auth-service
       - asset-service
@@ -29,6 +31,8 @@ services:
       - risk-engine
       - baseline-engine
       - attack-graph-engine
+      - scan-orchestrator
+      - validation-pack-registry
     networks:
       - cyvalidator-net
 
@@ -120,6 +124,38 @@ services:
       - asset-service
       - findings-service
       - baseline-engine
+    networks:
+      - cyvalidator-net
+
+  scan-orchestrator:
+    build: ./platform/scan-orchestrator
+    container_name: cyvalidator-scan-orchestrator
+    ports:
+      - "8087:8087"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+      - asset-service
+      - findings-service
+      - baseline-engine
+      - attack-graph-engine
+    networks:
+      - cyvalidator-net
+
+  validation-pack-registry:
+    build: ./platform/validation-pack-registry
+    container_name: cyvalidator-validation-pack-registry
+    ports:
+      - "8088:8088"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
     networks:
       - cyvalidator-net
 
