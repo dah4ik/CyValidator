@@ -17,8 +17,12 @@ services:
     environment:
       ENVIRONMENT: development
       AUTH_SERVICE_URL: http://auth-service:8081
+      ASSET_SERVICE_URL: http://asset-service:8082
+      FINDINGS_SERVICE_URL: http://findings-service:8083
     depends_on:
       - auth-service
+      - asset-service
+      - findings-service
     networks:
       - cyvalidator-net
 
@@ -32,6 +36,35 @@ services:
       JWT_SECRET: change_me_in_production
     depends_on:
       - postgres
+    networks:
+      - cyvalidator-net
+
+  asset-service:
+    build: ./platform/asset-service
+    container_name: cyvalidator-asset-service
+    ports:
+      - "8082:8082"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - cyvalidator-net
+
+  findings-service:
+    build: ./platform/findings-service
+    container_name: cyvalidator-findings-service
+    ports:
+      - "8083:8083"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+      - asset-service
     networks:
       - cyvalidator-net
 
