@@ -16,6 +16,22 @@ services:
       - "8080:8080"
     environment:
       ENVIRONMENT: development
+      AUTH_SERVICE_URL: http://auth-service:8081
+    depends_on:
+      - auth-service
+    networks:
+      - cyvalidator-net
+
+  auth-service:
+    build: ./platform/auth-service
+    container_name: cyvalidator-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
     networks:
       - cyvalidator-net
 

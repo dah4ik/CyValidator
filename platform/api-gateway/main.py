@@ -1,6 +1,10 @@
+import os
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Header, HTTPException, Request
+
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8081")
 
 app = FastAPI(
     title="CyValidator API Gateway",
@@ -35,16 +39,97 @@ def platform_info():
         "development_platform": "Windows",
         "target_deployment_platform": "Ubuntu Server",
         "runtime": "Docker Compose",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "modules": [
             "API Gateway",
             "Frontend Dashboard",
+            "Auth Service",
             "PostgreSQL",
             "Redis",
-            "Future Auth Service",
             "Future Asset Service",
             "Future Scan Orchestrator",
             "Future Risk Engine",
             "Future Validation Packs",
         ],
     }
+
+
+@app.get("/api/services/health")
+async def services_health():
+    services = {
+        "auth-service": f"{AUTH_SERVICE_URL}/health",
+    }
+
+    results = {}
+
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for service_name, url in services.items():
+            try:
+                response = await client.get(url)
+                results[service_name] = {
+                    "status_code": response.status_code,
+                    "response": response.json(),
+                }
+            except httpx.HTTPError as error:
+                results[service_name] = {
+                    "status": "unreachable",
+                    "error": str(error),
+                }
+
+    return {
+        "gateway": "healthy",
+        "services": results,
+    }
+
+
+@app.post("/api/auth/login")
+async def proxy_login(request: Request):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{AUTH_SERVICE_URL}/api/auth/login",
+            json=payload,
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.json().get("detail", "Authentication service error"),
+        )
+
+    return response.json()
+
+
+@app.get("/api/auth/me")
+async def proxy_me(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{AUTH_SERVICE_URL}/api/auth/me",
+            headers={"Authorization": authorization},
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.json().get("detail", "Authentication service error"),
+        )
+
+    return response.json()
+
+
+@app.get("/api/auth/rbac/permissions")
+async def proxy_permissions(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{AUTH_SERVICE_URL}/api/auth/rbac/permissions",
+            headers={"Authorization": authorization},
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.json().get("detail", "Authentication service error"),
+        )
+
+    return response.json()
