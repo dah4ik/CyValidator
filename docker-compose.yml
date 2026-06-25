@@ -24,6 +24,7 @@ services:
       ATTACK_GRAPH_ENGINE_URL: http://attack-graph-engine:8086
       SCAN_ORCHESTRATOR_URL: http://scan-orchestrator:8087
       VALIDATION_PACK_REGISTRY_URL: http://validation-pack-registry:8088
+      REMEDIATION_SERVICE_URL: http://remediation-service:8089
     depends_on:
       - auth-service
       - asset-service
@@ -33,6 +34,7 @@ services:
       - attack-graph-engine
       - scan-orchestrator
       - validation-pack-registry
+      - remediation-service
     networks:
       - cyvalidator-net
 
@@ -156,6 +158,22 @@ services:
     depends_on:
       - postgres
       - auth-service
+    networks:
+      - cyvalidator-net
+
+  remediation-service:
+    build: ./platform/remediation-service
+    container_name: cyvalidator-remediation-service
+    ports:
+      - "8089:8089"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+      - findings-service
+      - risk-engine
     networks:
       - cyvalidator-net
 

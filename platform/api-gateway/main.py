@@ -21,11 +21,15 @@ VALIDATION_PACK_REGISTRY_URL = os.getenv(
     "VALIDATION_PACK_REGISTRY_URL",
     "http://validation-pack-registry:8088",
 )
+REMEDIATION_SERVICE_URL = os.getenv(
+    "REMEDIATION_SERVICE_URL",
+    "http://remediation-service:8089",
+)
 
 app = FastAPI(
     title="CyValidator API Gateway",
     description="Central API Gateway for CyValidator",
-    version="0.9.0",
+    version="0.11.0",
 )
 
 
@@ -55,7 +59,7 @@ def platform_info():
         "development_platform": "Windows",
         "target_deployment_platform": "Ubuntu Server",
         "runtime": "Docker Compose",
-        "version": "0.9.0",
+        "version": "0.11.0",
         "modules": [
             "API Gateway",
             "Frontend Dashboard",
@@ -67,9 +71,10 @@ def platform_info():
             "Attack Graph Engine",
             "Scan Orchestrator",
             "Validation Pack Registry",
+            "Remediation Service",
             "PostgreSQL",
             "Redis",
-            "Future Remediation Service",
+            "Future Notification Service",
             "Future Report Service",
         ],
     }
@@ -107,6 +112,7 @@ async def services_health():
         "attack-graph-engine": f"{ATTACK_GRAPH_ENGINE_URL}/health",
         "scan-orchestrator": f"{SCAN_ORCHESTRATOR_URL}/health",
         "validation-pack-registry": f"{VALIDATION_PACK_REGISTRY_URL}/health",
+        "remediation-service": f"{REMEDIATION_SERVICE_URL}/health",
     }
 
     results = {}
@@ -951,6 +957,173 @@ async def proxy_delete_validation_pack(
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.delete(
             f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/remediations")
+async def proxy_remediation_tasks(
+        authorization: str = Header(...),
+        status_filter: str | None = None,
+        severity: str | None = None,
+        priority: str | None = None,
+        owner: str | None = None,
+):
+    params = {}
+
+    if status_filter:
+        params["status_filter"] = status_filter
+
+    if severity:
+        params["severity"] = severity
+
+    if priority:
+        params["priority"] = priority
+
+    if owner:
+        params["owner"] = owner
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations",
+            headers={"Authorization": authorization},
+            params=params,
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/remediations/summary")
+async def proxy_remediation_summary(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/summary",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/remediations/overdue")
+async def proxy_overdue_remediation_tasks(authorization: str = Header(...)):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/overdue",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/remediations/{task_id}")
+async def proxy_get_remediation_task(
+        task_id: int,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.get("/api/remediations/{task_id}/events")
+async def proxy_get_remediation_events(
+        task_id: int,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/events",
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.post("/api/remediations")
+async def proxy_create_remediation_task(
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.put("/api/remediations/{task_id}")
+async def proxy_update_remediation_task(
+        task_id: int,
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.put(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.patch("/api/remediations/{task_id}/status")
+async def proxy_update_remediation_status(
+        task_id: int,
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.patch(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/status",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.post("/api/remediations/{task_id}/validate")
+async def proxy_validate_remediation_task(
+        task_id: int,
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/validate",
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+@app.delete("/api/remediations/{task_id}")
+async def proxy_delete_remediation_task(
+        task_id: int,
+        authorization: str = Header(...),
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.delete(
+            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
             headers={"Authorization": authorization},
         )
 
