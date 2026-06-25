@@ -25,6 +25,7 @@ services:
       SCAN_ORCHESTRATOR_URL: http://scan-orchestrator:8087
       VALIDATION_PACK_REGISTRY_URL: http://validation-pack-registry:8088
       REMEDIATION_SERVICE_URL: http://remediation-service:8089
+      NOTIFICATION_SERVICE_URL: http://notification-service:8090
     depends_on:
       - auth-service
       - asset-service
@@ -35,6 +36,7 @@ services:
       - scan-orchestrator
       - validation-pack-registry
       - remediation-service
+      - notification-service
     networks:
       - cyvalidator-net
 
@@ -174,6 +176,23 @@ services:
       - auth-service
       - findings-service
       - risk-engine
+    networks:
+      - cyvalidator-net
+
+  notification-service:
+    build: ./platform/notification-service
+    container_name: cyvalidator-notification-service
+    ports:
+      - "8090:8090"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cyvalidator:cyvalidator@postgres:5432/cyvalidator
+      JWT_SECRET: change_me_in_production
+    depends_on:
+      - postgres
+      - auth-service
+      - remediation-service
+      - findings-service
+      - attack-graph-engine
     networks:
       - cyvalidator-net
 

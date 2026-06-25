@@ -25,11 +25,15 @@ REMEDIATION_SERVICE_URL = os.getenv(
     "REMEDIATION_SERVICE_URL",
     "http://remediation-service:8089",
 )
+NOTIFICATION_SERVICE_URL = os.getenv(
+    "NOTIFICATION_SERVICE_URL",
+    "http://notification-service:8090",
+)
 
 app = FastAPI(
     title="CyValidator API Gateway",
     description="Central API Gateway for CyValidator",
-    version="0.11.0",
+    version="0.12.0",
 )
 
 
@@ -59,7 +63,7 @@ def platform_info():
         "development_platform": "Windows",
         "target_deployment_platform": "Ubuntu Server",
         "runtime": "Docker Compose",
-        "version": "0.11.0",
+        "version": "0.12.0",
         "modules": [
             "API Gateway",
             "Frontend Dashboard",
@@ -72,10 +76,11 @@ def platform_info():
             "Scan Orchestrator",
             "Validation Pack Registry",
             "Remediation Service",
+            "Notification Service",
             "PostgreSQL",
             "Redis",
-            "Future Notification Service",
             "Future Report Service",
+            "Future Audit Service",
         ],
     }
 
@@ -101,6 +106,66 @@ async def forward_json_response(response: httpx.Response):
         }
 
 
+async def proxy_get(url: str, authorization: str, params: dict | None = None):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            url,
+            headers={"Authorization": authorization},
+            params=params or {},
+        )
+
+    return await forward_json_response(response)
+
+
+async def proxy_post(url: str, authorization: str, payload: dict):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            url,
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+async def proxy_put(url: str, authorization: str, payload: dict):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.put(
+            url,
+            json=payload,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
+async def proxy_patch(
+        url: str,
+        authorization: str,
+        payload: dict | None = None,
+        params: dict | None = None,
+):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.patch(
+            url,
+            json=payload,
+            headers={"Authorization": authorization},
+            params=params or {},
+        )
+
+    return await forward_json_response(response)
+
+
+async def proxy_delete(url: str, authorization: str):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.delete(
+            url,
+            headers={"Authorization": authorization},
+        )
+
+    return await forward_json_response(response)
+
+
 @app.get("/api/services/health")
 async def services_health():
     services = {
@@ -113,6 +178,7 @@ async def services_health():
         "scan-orchestrator": f"{SCAN_ORCHESTRATOR_URL}/health",
         "validation-pack-registry": f"{VALIDATION_PACK_REGISTRY_URL}/health",
         "remediation-service": f"{REMEDIATION_SERVICE_URL}/health",
+        "notification-service": f"{NOTIFICATION_SERVICE_URL}/health",
     }
 
     results = {}
@@ -153,115 +219,85 @@ async def proxy_login(request: Request):
 
 @app.get("/api/auth/me")
 async def proxy_me(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{AUTH_SERVICE_URL}/api/auth/me",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{AUTH_SERVICE_URL}/api/auth/me",
+        authorization,
+    )
 
 
 @app.get("/api/auth/rbac/permissions")
 async def proxy_permissions(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{AUTH_SERVICE_URL}/api/auth/rbac/permissions",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{AUTH_SERVICE_URL}/api/auth/rbac/permissions",
+        authorization,
+    )
 
 
 @app.get("/api/auth/tenants")
 async def proxy_list_tenants(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{AUTH_SERVICE_URL}/api/auth/tenants",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{AUTH_SERVICE_URL}/api/auth/tenants",
+        authorization,
+    )
 
 
 @app.get("/api/auth/roles")
 async def proxy_list_roles(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{AUTH_SERVICE_URL}/api/auth/roles",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{AUTH_SERVICE_URL}/api/auth/roles",
+        authorization,
+    )
 
 
 @app.get("/api/auth/users")
 async def proxy_list_users(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{AUTH_SERVICE_URL}/api/auth/users",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{AUTH_SERVICE_URL}/api/auth/users",
+        authorization,
+    )
 
 
 @app.get("/api/assets")
 async def proxy_list_assets(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ASSET_SERVICE_URL}/api/assets",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ASSET_SERVICE_URL}/api/assets",
+        authorization,
+    )
 
 
 @app.get("/api/assets/summary")
 async def proxy_assets_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ASSET_SERVICE_URL}/api/assets/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ASSET_SERVICE_URL}/api/assets/summary",
+        authorization,
+    )
 
 
 @app.get("/api/assets/zones")
 async def proxy_asset_zones(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ASSET_SERVICE_URL}/api/assets/zones",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ASSET_SERVICE_URL}/api/assets/zones",
+        authorization,
+    )
 
 
 @app.get("/api/assets/{asset_id}")
 async def proxy_get_asset(asset_id: int, authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ASSET_SERVICE_URL}/api/assets/{asset_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ASSET_SERVICE_URL}/api/assets/{asset_id}",
+        authorization,
+    )
 
 
 @app.post("/api/assets")
 async def proxy_create_asset(request: Request, authorization: str = Header(...)):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{ASSET_SERVICE_URL}/api/assets",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{ASSET_SERVICE_URL}/api/assets",
+        authorization,
+        payload,
+    )
 
 
 @app.put("/api/assets/{asset_id}")
@@ -272,25 +308,19 @@ async def proxy_update_asset(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.put(
-            f"{ASSET_SERVICE_URL}/api/assets/{asset_id}",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_put(
+        f"{ASSET_SERVICE_URL}/api/assets/{asset_id}",
+        authorization,
+        payload,
+    )
 
 
 @app.delete("/api/assets/{asset_id}")
 async def proxy_delete_asset(asset_id: int, authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.delete(
-            f"{ASSET_SERVICE_URL}/api/assets/{asset_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_delete(
+        f"{ASSET_SERVICE_URL}/api/assets/{asset_id}",
+        authorization,
+    )
 
 
 @app.get("/api/findings")
@@ -307,50 +337,38 @@ async def proxy_list_findings(
     if severity:
         params["severity"] = severity
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{FINDINGS_SERVICE_URL}/api/findings",
-            headers={"Authorization": authorization},
-            params=params,
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{FINDINGS_SERVICE_URL}/api/findings",
+        authorization,
+        params,
+    )
 
 
 @app.get("/api/findings/summary")
 async def proxy_findings_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{FINDINGS_SERVICE_URL}/api/findings/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{FINDINGS_SERVICE_URL}/api/findings/summary",
+        authorization,
+    )
 
 
 @app.get("/api/findings/{finding_id}")
 async def proxy_get_finding(finding_id: int, authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}",
+        authorization,
+    )
 
 
 @app.post("/api/findings")
 async def proxy_create_finding(request: Request, authorization: str = Header(...)):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{FINDINGS_SERVICE_URL}/api/findings",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{FINDINGS_SERVICE_URL}/api/findings",
+        authorization,
+        payload,
+    )
 
 
 @app.put("/api/findings/{finding_id}")
@@ -361,14 +379,11 @@ async def proxy_update_finding(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.put(
-            f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_put(
+        f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}",
+        authorization,
+        payload,
+    )
 
 
 @app.patch("/api/findings/{finding_id}/status")
@@ -379,47 +394,35 @@ async def proxy_update_finding_status(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.patch(
-            f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}/status",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_patch(
+        f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}/status",
+        authorization,
+        payload,
+    )
 
 
 @app.delete("/api/findings/{finding_id}")
 async def proxy_delete_finding(finding_id: int, authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.delete(
-            f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_delete(
+        f"{FINDINGS_SERVICE_URL}/api/findings/{finding_id}",
+        authorization,
+    )
 
 
 @app.get("/api/risk/summary")
 async def proxy_risk_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{RISK_ENGINE_URL}/api/risk/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{RISK_ENGINE_URL}/api/risk/summary",
+        authorization,
+    )
 
 
 @app.get("/api/risk/security-score")
 async def proxy_security_score(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{RISK_ENGINE_URL}/api/risk/security-score",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{RISK_ENGINE_URL}/api/risk/security-score",
+        authorization,
+    )
 
 
 @app.get("/api/risk/priorities")
@@ -427,47 +430,35 @@ async def proxy_risk_priorities(
         authorization: str = Header(...),
         limit: int = 5,
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{RISK_ENGINE_URL}/api/risk/priorities",
-            headers={"Authorization": authorization},
-            params={"limit": limit},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{RISK_ENGINE_URL}/api/risk/priorities",
+        authorization,
+        {"limit": limit},
+    )
 
 
 @app.get("/api/risk/assets")
 async def proxy_risky_assets(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{RISK_ENGINE_URL}/api/risk/assets",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{RISK_ENGINE_URL}/api/risk/assets",
+        authorization,
+    )
 
 
 @app.get("/api/risk/remediation-roi")
 async def proxy_remediation_roi(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{RISK_ENGINE_URL}/api/risk/remediation-roi",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{RISK_ENGINE_URL}/api/risk/remediation-roi",
+        authorization,
+    )
 
 
 @app.get("/api/baseline/summary")
 async def proxy_baseline_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{BASELINE_ENGINE_URL}/api/baseline/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{BASELINE_ENGINE_URL}/api/baseline/summary",
+        authorization,
+    )
 
 
 @app.get("/api/baseline/controls")
@@ -488,25 +479,19 @@ async def proxy_baseline_controls(
     if category:
         params["category"] = category
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{BASELINE_ENGINE_URL}/api/baseline/controls",
-            headers={"Authorization": authorization},
-            params=params,
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{BASELINE_ENGINE_URL}/api/baseline/controls",
+        authorization,
+        params,
+    )
 
 
 @app.get("/api/baseline/failed")
 async def proxy_failed_baseline_controls(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{BASELINE_ENGINE_URL}/api/baseline/failed",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{BASELINE_ENGINE_URL}/api/baseline/failed",
+        authorization,
+    )
 
 
 @app.get("/api/baseline/controls/{control_id}")
@@ -514,13 +499,10 @@ async def proxy_get_baseline_control(
         control_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
+        authorization,
+    )
 
 
 @app.post("/api/baseline/controls")
@@ -530,14 +512,11 @@ async def proxy_create_baseline_control(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{BASELINE_ENGINE_URL}/api/baseline/controls",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{BASELINE_ENGINE_URL}/api/baseline/controls",
+        authorization,
+        payload,
+    )
 
 
 @app.put("/api/baseline/controls/{control_id}")
@@ -548,14 +527,11 @@ async def proxy_update_baseline_control(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.put(
-            f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_put(
+        f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
+        authorization,
+        payload,
+    )
 
 
 @app.delete("/api/baseline/controls/{control_id}")
@@ -563,24 +539,18 @@ async def proxy_delete_baseline_control(
         control_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.delete(
-            f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_delete(
+        f"{BASELINE_ENGINE_URL}/api/baseline/controls/{control_id}",
+        authorization,
+    )
 
 
 @app.get("/api/attack-graph/summary")
 async def proxy_attack_graph_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/summary",
+        authorization,
+    )
 
 
 @app.get("/api/attack-graph/paths")
@@ -597,36 +567,27 @@ async def proxy_attack_graph_paths(
     if status_filter:
         params["status_filter"] = status_filter
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths",
-            headers={"Authorization": authorization},
-            params=params,
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths",
+        authorization,
+        params,
+    )
 
 
 @app.get("/api/attack-graph/critical")
 async def proxy_critical_attack_paths(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/critical",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/critical",
+        authorization,
+    )
 
 
 @app.get("/api/attack-graph/break-points")
 async def proxy_attack_graph_break_points(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/break-points",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/break-points",
+        authorization,
+    )
 
 
 @app.get("/api/attack-graph/paths/{path_id}")
@@ -634,13 +595,10 @@ async def proxy_get_attack_path(
         path_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
+        authorization,
+    )
 
 
 @app.post("/api/attack-graph/paths")
@@ -650,14 +608,11 @@ async def proxy_create_attack_path(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths",
+        authorization,
+        payload,
+    )
 
 
 @app.put("/api/attack-graph/paths/{path_id}")
@@ -668,14 +623,11 @@ async def proxy_update_attack_path(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.put(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_put(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
+        authorization,
+        payload,
+    )
 
 
 @app.patch("/api/attack-graph/paths/{path_id}/status")
@@ -684,14 +636,11 @@ async def proxy_update_attack_path_status(
         status_value: str,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.patch(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}/status",
-            headers={"Authorization": authorization},
-            params={"status_value": status_value},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_patch(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}/status",
+        authorization,
+        params={"status_value": status_value},
+    )
 
 
 @app.delete("/api/attack-graph/paths/{path_id}")
@@ -699,13 +648,10 @@ async def proxy_delete_attack_path(
         path_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.delete(
-            f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_delete(
+        f"{ATTACK_GRAPH_ENGINE_URL}/api/attack-graph/paths/{path_id}",
+        authorization,
+    )
 
 
 @app.get("/api/scans")
@@ -722,25 +668,19 @@ async def proxy_scan_runs(
     if validation_pack:
         params["validation_pack"] = validation_pack
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{SCAN_ORCHESTRATOR_URL}/api/scans",
-            headers={"Authorization": authorization},
-            params=params,
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{SCAN_ORCHESTRATOR_URL}/api/scans",
+        authorization,
+        params,
+    )
 
 
 @app.get("/api/scans/summary")
 async def proxy_scan_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{SCAN_ORCHESTRATOR_URL}/api/scans/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{SCAN_ORCHESTRATOR_URL}/api/scans/summary",
+        authorization,
+    )
 
 
 @app.get("/api/scans/{scan_run_id}")
@@ -748,13 +688,10 @@ async def proxy_get_scan_run(
         scan_run_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}",
+        authorization,
+    )
 
 
 @app.get("/api/scans/{scan_run_id}/events")
@@ -762,13 +699,10 @@ async def proxy_get_scan_events(
         scan_run_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}/events",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}/events",
+        authorization,
+    )
 
 
 @app.post("/api/scans/run")
@@ -778,14 +712,11 @@ async def proxy_run_scan(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{SCAN_ORCHESTRATOR_URL}/api/scans/run",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{SCAN_ORCHESTRATOR_URL}/api/scans/run",
+        authorization,
+        payload,
+    )
 
 
 @app.patch("/api/scans/{scan_run_id}/status")
@@ -796,14 +727,11 @@ async def proxy_update_scan_status(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.patch(
-            f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}/status",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_patch(
+        f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}/status",
+        authorization,
+        payload,
+    )
 
 
 @app.delete("/api/scans/{scan_run_id}")
@@ -811,13 +739,10 @@ async def proxy_delete_scan_run(
         scan_run_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.delete(
-            f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_delete(
+        f"{SCAN_ORCHESTRATOR_URL}/api/scans/{scan_run_id}",
+        authorization,
+    )
 
 
 @app.get("/api/validation-packs")
@@ -838,36 +763,27 @@ async def proxy_validation_packs(
     if maturity:
         params["maturity"] = maturity
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs",
-            headers={"Authorization": authorization},
-            params=params,
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs",
+        authorization,
+        params,
+    )
 
 
 @app.get("/api/validation-packs/summary")
 async def proxy_validation_pack_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/summary",
+        authorization,
+    )
 
 
 @app.get("/api/validation-packs/categories")
 async def proxy_validation_pack_categories(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/categories",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/categories",
+        authorization,
+    )
 
 
 @app.get("/api/validation-packs/{pack_key}")
@@ -875,13 +791,10 @@ async def proxy_get_validation_pack(
         pack_key: str,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}",
+        authorization,
+    )
 
 
 @app.get("/api/validation-packs/{pack_key}/checks")
@@ -889,13 +802,10 @@ async def proxy_get_validation_pack_checks(
         pack_key: str,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}/checks",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}/checks",
+        authorization,
+    )
 
 
 @app.post("/api/validation-packs")
@@ -905,14 +815,11 @@ async def proxy_create_validation_pack(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs",
+        authorization,
+        payload,
+    )
 
 
 @app.put("/api/validation-packs/{pack_key}")
@@ -923,14 +830,11 @@ async def proxy_update_validation_pack(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.put(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_put(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}",
+        authorization,
+        payload,
+    )
 
 
 @app.patch("/api/validation-packs/{pack_key}/status")
@@ -939,14 +843,11 @@ async def proxy_update_validation_pack_status(
         status_value: str,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.patch(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}/status",
-            headers={"Authorization": authorization},
-            params={"status_value": status_value},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_patch(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}/status",
+        authorization,
+        params={"status_value": status_value},
+    )
 
 
 @app.delete("/api/validation-packs/{pack_key}")
@@ -954,13 +855,10 @@ async def proxy_delete_validation_pack(
         pack_key: str,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.delete(
-            f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_delete(
+        f"{VALIDATION_PACK_REGISTRY_URL}/api/validation-packs/{pack_key}",
+        authorization,
+    )
 
 
 @app.get("/api/remediations")
@@ -985,36 +883,27 @@ async def proxy_remediation_tasks(
     if owner:
         params["owner"] = owner
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations",
-            headers={"Authorization": authorization},
-            params=params,
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations",
+        authorization,
+        params,
+    )
 
 
 @app.get("/api/remediations/summary")
 async def proxy_remediation_summary(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/summary",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/summary",
+        authorization,
+    )
 
 
 @app.get("/api/remediations/overdue")
 async def proxy_overdue_remediation_tasks(authorization: str = Header(...)):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/overdue",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/overdue",
+        authorization,
+    )
 
 
 @app.get("/api/remediations/{task_id}")
@@ -1022,13 +911,10 @@ async def proxy_get_remediation_task(
         task_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
+        authorization,
+    )
 
 
 @app.get("/api/remediations/{task_id}/events")
@@ -1036,13 +922,10 @@ async def proxy_get_remediation_events(
         task_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/events",
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_get(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/events",
+        authorization,
+    )
 
 
 @app.post("/api/remediations")
@@ -1052,14 +935,11 @@ async def proxy_create_remediation_task(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations",
+        authorization,
+        payload,
+    )
 
 
 @app.put("/api/remediations/{task_id}")
@@ -1070,14 +950,11 @@ async def proxy_update_remediation_task(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.put(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_put(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
+        authorization,
+        payload,
+    )
 
 
 @app.patch("/api/remediations/{task_id}/status")
@@ -1088,14 +965,11 @@ async def proxy_update_remediation_status(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.patch(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/status",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_patch(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/status",
+        authorization,
+        payload,
+    )
 
 
 @app.post("/api/remediations/{task_id}/validate")
@@ -1106,14 +980,11 @@ async def proxy_validate_remediation_task(
 ):
     payload = await request.json()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/validate",
-            json=payload,
-            headers={"Authorization": authorization},
-        )
-
-    return await forward_json_response(response)
+    return await proxy_post(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}/validate",
+        authorization,
+        payload,
+    )
 
 
 @app.delete("/api/remediations/{task_id}")
@@ -1121,10 +992,208 @@ async def proxy_delete_remediation_task(
         task_id: int,
         authorization: str = Header(...),
 ):
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.delete(
-            f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
-            headers={"Authorization": authorization},
-        )
+    return await proxy_delete(
+        f"{REMEDIATION_SERVICE_URL}/api/remediations/{task_id}",
+        authorization,
+    )
 
-    return await forward_json_response(response)
+
+@app.get("/api/notifications/events")
+async def proxy_notification_events(
+        authorization: str = Header(...),
+        event_type: str | None = None,
+        severity: str | None = None,
+        delivery_channel: str | None = None,
+        delivery_status: str | None = None,
+):
+    params = {}
+
+    if event_type:
+        params["event_type"] = event_type
+
+    if severity:
+        params["severity"] = severity
+
+    if delivery_channel:
+        params["delivery_channel"] = delivery_channel
+
+    if delivery_status:
+        params["delivery_status"] = delivery_status
+
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events",
+        authorization,
+        params,
+    )
+
+
+@app.get("/api/notifications/events/summary")
+async def proxy_notification_events_summary(authorization: str = Header(...)):
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events/summary",
+        authorization,
+    )
+
+
+@app.get("/api/notifications/events/email-ready")
+async def proxy_email_ready_notification_events(authorization: str = Header(...)):
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events/email-ready",
+        authorization,
+    )
+
+
+@app.get("/api/notifications/events/webhook-ready")
+async def proxy_webhook_ready_notification_events(authorization: str = Header(...)):
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events/webhook-ready",
+        authorization,
+    )
+
+
+@app.get("/api/notifications/events/{event_id}")
+async def proxy_get_notification_event(
+        event_id: int,
+        authorization: str = Header(...),
+):
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events/{event_id}",
+        authorization,
+    )
+
+
+@app.post("/api/notifications/events")
+async def proxy_create_notification_event(
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    return await proxy_post(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events",
+        authorization,
+        payload,
+    )
+
+
+@app.patch("/api/notifications/events/{event_id}/status")
+async def proxy_update_notification_event_status(
+        event_id: int,
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    return await proxy_patch(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events/{event_id}/status",
+        authorization,
+        payload,
+    )
+
+
+@app.delete("/api/notifications/events/{event_id}")
+async def proxy_delete_notification_event(
+        event_id: int,
+        authorization: str = Header(...),
+):
+    return await proxy_delete(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/events/{event_id}",
+        authorization,
+    )
+
+
+@app.get("/api/notifications/subscriptions")
+async def proxy_notification_subscriptions(
+        authorization: str = Header(...),
+        event_type: str | None = None,
+        channel: str | None = None,
+        status_filter: str | None = None,
+):
+    params = {}
+
+    if event_type:
+        params["event_type"] = event_type
+
+    if channel:
+        params["channel"] = channel
+
+    if status_filter:
+        params["status_filter"] = status_filter
+
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/subscriptions",
+        authorization,
+        params,
+    )
+
+
+@app.get("/api/notifications/subscriptions/summary")
+async def proxy_notification_subscriptions_summary(authorization: str = Header(...)):
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/subscriptions/summary",
+        authorization,
+    )
+
+
+@app.get("/api/notifications/subscriptions/{subscription_id}")
+async def proxy_get_notification_subscription(
+        subscription_id: int,
+        authorization: str = Header(...),
+):
+    return await proxy_get(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/subscriptions/{subscription_id}",
+        authorization,
+    )
+
+
+@app.post("/api/notifications/subscriptions")
+async def proxy_create_notification_subscription(
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    return await proxy_post(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/subscriptions",
+        authorization,
+        payload,
+    )
+
+
+@app.put("/api/notifications/subscriptions/{subscription_id}")
+async def proxy_update_notification_subscription(
+        subscription_id: int,
+        request: Request,
+        authorization: str = Header(...),
+):
+    payload = await request.json()
+
+    return await proxy_put(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/subscriptions/{subscription_id}",
+        authorization,
+        payload,
+    )
+
+
+@app.patch("/api/notifications/subscriptions/{subscription_id}/status")
+async def proxy_update_notification_subscription_status(
+        subscription_id: int,
+        status_value: str,
+        authorization: str = Header(...),
+):
+    return await proxy_patch(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/subscriptions/{subscription_id}/status",
+        authorization,
+        params={"status_value": status_value},
+    )
+
+
+@app.delete("/api/notifications/subscriptions/{subscription_id}")
+async def proxy_delete_notification_subscription(
+        subscription_id: int,
+        authorization: str = Header(...),
+):
+    return await proxy_delete(
+        f"{NOTIFICATION_SERVICE_URL}/api/notifications/subscriptions/{subscription_id}",
+        authorization,
+    )
